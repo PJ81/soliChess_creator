@@ -1,10 +1,11 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using System.Drawing;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
-Random rand = new Random();
-string[,] board = new string[4, 4];
-string[,] temp = new string[4, 4];
+Random rand = new();
+const int MAXSIZE = 4;
+string[,] board = new string[MAXSIZE, MAXSIZE];
+string[,] temp = new string[MAXSIZE, MAXSIZE];
+
 
 void createBoard() {
 
@@ -17,8 +18,8 @@ void createBoard() {
     for (int i = 0; i < 100; i++)
         Array.Sort(pieces, comparer);
 
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
+    for (int i = 0; i < MAXSIZE; i++) {
+        for (int j = 0; j < MAXSIZE; j++) {
             board[j, i] = "";
             temp[j, i] = "";
         }
@@ -40,20 +41,32 @@ void createBoard() {
     int count = rand.Next(7) + 4, idx = 0;
 
     for (int i = 0; i < count; i++) {
-        int x = rand.Next(4), y = rand.Next(4);
+        int x = rand.Next(MAXSIZE), y = rand.Next(MAXSIZE);
         board[x, y] = pieces[idx];
         temp[x, y] = pieces[idx++];   
     }
     */
 }
 
-bool inBounds(Point p) {
-    return p.X >= 0 && p.Y >= 0 && p.X < 4 && p.Y < 4;
+void saveBoard() {
+    StreamWriter w = new("boards.txt", true);
+
+    for (int i = 0; i < MAXSIZE; i++) {
+        for (int j = 0; j < MAXSIZE; j++) {
+            string u = temp[j, i] == "" ? "-" : temp[j, i];
+            w.Write(u + " ");
+        }
+        w.WriteLine();
+    }
+
+    w.WriteLine();
+
+    w.Close();
 }
 
 void printBoard() {
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
+    for (int i = 0; i < MAXSIZE; i++) {
+        for (int j = 0; j < MAXSIZE; j++) {
             string u = board[j, i] == "" ? "-" : board[j, i];
             Console.Write(u + " ");
         }
@@ -65,10 +78,14 @@ void printBoard() {
     Console.WriteLine();
 }
 
+bool inBounds(Point p) {
+    return p.X >= 0 && p.Y >= 0 && p.X < MAXSIZE && p.Y < MAXSIZE;
+}
+
 int countPieces() {
     int count = 0;
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
+    for (int i = 0; i < MAXSIZE; i++) {
+        for (int j = 0; j < MAXSIZE; j++) {
             count += board[j, i] != "" ? 1 : 0;
         }
     }
@@ -83,42 +100,36 @@ Point getNextPiece(Point p) {
             if (board[x, y] != "") {
                 return new Point(x, y);
             }
-            if (++x >= 4) break;
+            if (++x >= MAXSIZE) break;
         }
         x = 0;
-        if (++y >= 4) break;
+        if (++y >= MAXSIZE) break;
     }
     return new Point(-1, -1);
 }
 
-Point[] getMoves(string p){
-    switch (p) {
-        case "K":
-        case "Q":
-            return [
+Point[] getMoves(string s){
+    return s switch {
+        "K" or "Q" => [
                 new(-1,  0),    new( 1,  0),
                 new( 0, -1),    new( 0,  1),
                 new(-1,  1),    new( 1, -1),
-                new(-1, -1),    new( 1,  1)];
-        case "B":                     
-           return [                  
+                new(-1, -1),    new( 1,  1)],
+        "B" => [
                 new(-1,  1),    new( 1, -1),
-                new(-1, -1),    new( 1,  1)];
-        case "N":                     
-           return [                  
+                new(-1, -1),    new( 1,  1)],
+        "N" => [
                 new(-2,  1),    new( 2,  1),
                 new(-2, -1),    new( 2, -1),
                 new(-1,  2),    new( 1,  2),
-                new(-1, -2),    new( 1, -2)];
-        case "R":                     
-           return [                  
+                new(-1, -2),    new( 1, -2)],
+        "R" => [
                new(-1,  0),     new( 1,  0),
-               new( 0, -1),     new( 0,  1)];
-        case "P":
-            return [
-               new( 1, -1),     new(-1, -1)];
-    }
-    return [];
+               new( 0, -1),     new( 0,  1)],
+        "P" => [
+               new( 1, -1),     new(-1, -1)],
+        _ => [],
+    };
 }
 
 bool tryCapture(Point p) {
@@ -163,8 +174,8 @@ bool tryCapture(Point p) {
 }
 
 void copyArrays() {
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
+    for (int i = 0; i < MAXSIZE; i++) {
+        for (int j = 0; j < MAXSIZE; j++) {
             board[j, i] = temp[j, i];
         }
     }
@@ -177,8 +188,8 @@ bool solveBoard() {
         return true;
     }
 
-    for(int y = 0; y < 4; y++) {
-        for (int x = 0; x < 4; x++) {
+    for(int y = 0; y < MAXSIZE; y++) {
+        for (int x = 0; x < MAXSIZE; x++) {
 ;
             Point p = new(x, y);
 
@@ -196,27 +207,14 @@ bool solveBoard() {
     return false;
 }
 
-createBoard();
-
+// entry point
 for (int z = 0; z < 1; z++) {
 
+    createBoard();
     printBoard();
 
     if (solveBoard()) {
-
-        StreamWriter w = new StreamWriter("boards.txt", true);
-
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                string u = temp[j, i] == "" ? "-" : temp[j, i];
-                w.Write(u + " ");
-            }
-            w.WriteLine();
-        }
-
-        w.WriteLine();
-
-        w.Close();
+        saveBoard();
     }
 }
 
