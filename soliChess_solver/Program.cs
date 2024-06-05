@@ -1,10 +1,12 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using Microsoft.VisualBasic;
 using System.Drawing;
 
 Random rand = new();
 const int MAXSIZE = 4;
 string[,] board = new string[MAXSIZE, MAXSIZE];
 string[,] temp = new string[MAXSIZE, MAXSIZE];
+List<Tuple<Point, Point>> points = [];
 
 
 void createBoard() {
@@ -48,6 +50,10 @@ void createBoard() {
     */
 }
 
+string pt2String(Point p) {
+    return Convert.ToString(Convert.ToChar(p.X + 65)) + Convert.ToString(Convert.ToChar(52 - p.Y));
+}
+
 void saveBoard() {
     StreamWriter w = new("boards.txt", true);
 
@@ -59,6 +65,14 @@ void saveBoard() {
         w.WriteLine();
     }
 
+    w.Write(ControlChars.Tab);
+    w.Write(ControlChars.Tab);
+
+    foreach (Tuple<Point, Point> p in points) {
+        w.Write(pt2String(p.Item1) + "->" + pt2String(p.Item2) + " ");
+    }
+
+    w.WriteLine();
     w.WriteLine();
 
     w.Close();
@@ -132,28 +146,28 @@ Point[] getMoves(string s){
     };
 }
 
-bool tryCapture(Point p) {
-    string s = board[p.X, p.Y];
+Point[] tryCapture(Point f) {
+    string s = board[f.X, f.Y];
+
     Point[] moves = getMoves(s);
-    if (moves.Length == 0) return false;
+    if (moves.Length == 0) return [];
+
     Point t = new();
 
     if (s.Equals("K") || s.Equals("N") || s.Equals("P")) {
         for (int i = 0; i < moves.Length; i++) {
-            t.X = p.X + moves[i].X;
-            t.Y = p.Y + moves[i].Y;
+            t.X = f.X + moves[i].X;
+            t.Y = f.Y + moves[i].Y;
 
-            if (!inBounds(t)) break;
-
-            if (board[t.X, t.Y] != "") {
+            if (inBounds(t) && board[t.X, t.Y] != "" && !t.Equals(f)) {
                 board[t.X, t.Y] = s;
-                board[p.X, p.Y] = "";
-                return true;
+                board[f.X, f.Y] = "";
+                return [f, t];
             }
         }
     } else {
         for (int i = 0; i < moves.Length; i++) {
-            t.X = p.X; p.Y = p.Y;
+            t.X = f.X; f.Y = f.Y;
 
             while (true) {
                 t.X += moves[i].X; 
@@ -161,16 +175,16 @@ bool tryCapture(Point p) {
 
                 if (!inBounds(t)) break;
 
-                if (board[t.X, t.Y] != "") {
+                if (board[t.X, t.Y] != "" && !t.Equals(f)) {
                     board[t.X, t.Y] = s;
-                    board[p.X, p.Y] = "";
-                    return true;
+                    board[f.X, f.Y] = "";
+                    return [f, t];
                 }
             }
         }
     }
 
-    return false;
+    return [];
 }
 
 void copyArrays() {
@@ -192,14 +206,17 @@ bool solveBoard() {
         for (int x = 0; x < MAXSIZE; x++) {
 ;
             Point p = new(x, y);
+            Point[] r = tryCapture(p);
 
-            p = getNextPiece(p);
+            if (r.Length > 0) {
+                Tuple<Point, Point> pts = new(r[0], r[1]);
+                points.Add(pts);
 
-            if (p.X < 0) return false;
+                if (solveBoard()) return true;
 
-            if (tryCapture(p)) {
-                if(!solveBoard()) break;
-                return true;
+                points.Remove(pts);
+
+                board[r[0].X, r[0].Y] = board[r[1].X, r[1].Y];
             }
         }
     }
