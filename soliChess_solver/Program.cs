@@ -3,22 +3,37 @@ using Microsoft.VisualBasic;
 using System.Drawing;
 
 Random rand = new();
-const int MAXSIZE = 4;
+const int MAXSIZE = 8;
 string[,] board = new string[MAXSIZE, MAXSIZE];
 string[,] temp = new string[MAXSIZE, MAXSIZE];
 List<Tuple<Point, Point>> points = [];
+int solved;
+string[] PIECES = ["K", "Q", "B", "B", "N", "N", "R", "R", "P", "P", "B", "N", "R", "P", "B", "N", "R", "P", "B", "N", "R", "P"];
 
+void shuffle(string[] arr) {
+    int n = arr.Length;
+    string tmp;
+
+    for (int i = n - 1; i > 0; i--) {
+
+        int j = rand.Next(i + 1);
+
+        tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+    }
+}
 
 void createBoard() {
 
-    int comparer(string a, string b) {
-        return rand.Next(-1, 1);
+    int z = MAXSIZE == 4 ? 10 : MAXSIZE == 6 ? 14 : MAXSIZE == 7 ? 18 : 22;
+    string[] pieces = new string[z];
+    for (int a = 0; a < z; a++) {
+        pieces[a] = PIECES[a];
     }
 
-    string[] pieces = ["K", "Q", "B", "B", "N", "N", "R", "R", "P", "P"];
-    
-    for (int i = 0; i < 100; i++)
-        Array.Sort(pieces, comparer);
+    for (int i = 0; i < z * 100; i++)
+        shuffle(pieces);
 
     for (int i = 0; i < MAXSIZE; i++) {
         for (int j = 0; j < MAXSIZE; j++) {
@@ -27,27 +42,20 @@ void createBoard() {
         }
     }
 
-    temp[0, 0] = board[0, 0] = "N";
-    temp[2, 0] = board[2, 0] = "P";
-    temp[3, 0] = board[3, 0] = "B";
-    temp[0, 2] = board[0, 2] = "N";
-    temp[2, 2] = board[2, 2] = "Q";
-    temp[3, 2] = board[3, 2] = "K";
-    temp[0, 3] = board[0, 3] = "R";
-    temp[1, 3] = board[1, 3] = "B";
-    temp[2, 3] = board[2, 3] = "R";
-    temp[3, 3] = board[3, 3] = "P";
-
-    /*
-
-    int count = rand.Next(7) + 4, idx = 0;
+    int count = rand.Next(MAXSIZE, pieces.Length), idx = 0;
 
     for (int i = 0; i < count; i++) {
-        int x = rand.Next(MAXSIZE), y = rand.Next(MAXSIZE);
-        board[x, y] = pieces[idx];
-        temp[x, y] = pieces[idx++];   
+        while (true) {
+
+            int x = rand.Next(MAXSIZE), y = rand.Next(MAXSIZE);
+
+            if (board[x, y] == "") {
+                board[x, y] = pieces[idx];
+                temp[x, y] = pieces[idx++];
+                break;
+            }
+        }
     }
-    */
 }
 
 string pt2String(Point p) {
@@ -88,8 +96,6 @@ void printBoard() {
     }
 
     Console.WriteLine();
-    Console.WriteLine("--------- // ---------");
-    Console.WriteLine();
 }
 
 bool inBounds(Point p) {
@@ -104,22 +110,6 @@ int countPieces() {
         }
     }
     return count;
-}
-
-Point getNextPiece(Point p) {
-    int x = p.X, y = p.Y;
-
-    while(true) {
-        while(true) {
-            if (board[x, y] != "") {
-                return new Point(x, y);
-            }
-            if (++x >= MAXSIZE) break;
-        }
-        x = 0;
-        if (++y >= MAXSIZE) break;
-    }
-    return new Point(-1, -1);
 }
 
 Point[] getMoves(string s){
@@ -159,15 +149,17 @@ Point[] tryCapture(Point f) {
             t.X = f.X + moves[i].X;
             t.Y = f.Y + moves[i].Y;
 
-            if (inBounds(t) && board[t.X, t.Y] != "" && !t.Equals(f)) {
-                board[t.X, t.Y] = s;
-                board[f.X, f.Y] = "";
-                return [f, t];
-            }
+            //if (inBounds(t) && board[t.X, t.Y] != "" && !t.Equals(f)) 
+            if (!inBounds(t) || board[t.X, t.Y] == "" || t.Equals(f)) continue;
+            board[t.X, t.Y] = s;
+            board[f.X, f.Y] = "";
+            return [f, t];
+            
         }
     } else {
         for (int i = 0; i < moves.Length; i++) {
-            t.X = f.X; f.Y = f.Y;
+            t.X = f.X; 
+            t.Y = f.Y;
 
             while (true) {
                 t.X += moves[i].X; 
@@ -187,10 +179,10 @@ Point[] tryCapture(Point f) {
     return [];
 }
 
-void copyArrays() {
+void copyArray(string[,] from, string[,] to) {
     for (int i = 0; i < MAXSIZE; i++) {
         for (int j = 0; j < MAXSIZE; j++) {
-            board[j, i] = temp[j, i];
+            to[j, i] = from[j, i];
         }
     }
 }
@@ -206,17 +198,22 @@ bool solveBoard() {
         for (int x = 0; x < MAXSIZE; x++) {
 ;
             Point p = new(x, y);
+
+            // save board
+            string[,] back = new string[MAXSIZE, MAXSIZE];
+            copyArray(board, back);
+
             Point[] r = tryCapture(p);
 
             if (r.Length > 0) {
+               
                 Tuple<Point, Point> pts = new(r[0], r[1]);
                 points.Add(pts);
 
                 if (solveBoard()) return true;
 
                 points.Remove(pts);
-
-                board[r[0].X, r[0].Y] = board[r[1].X, r[1].Y];
+                copyArray(back, board);
             }
         }
     }
@@ -225,15 +222,23 @@ bool solveBoard() {
 }
 
 // entry point
-for (int z = 0; z < 1; z++) {
+solved = 0;
+
+for (int z = 0; z < 10; z++) {
 
     createBoard();
     printBoard();
 
+    points.Clear();
+
     if (solveBoard()) {
+        solved++;
         saveBoard();
     }
+
+    Console.WriteLine("--------- // ---------");
+    Console.WriteLine();
 }
 
-Console.WriteLine("Done!");
+Console.WriteLine("Done " + solved + " boards!");
 
