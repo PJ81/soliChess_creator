@@ -1,40 +1,35 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using Microsoft.VisualBasic;
-using System.Drawing;
 
-Random rand = new();
-const int MAXSIZE = 8;
+#region properties
+const int MAXSIZE = 4;
+string[] PIECES = ["K", "Q", "B", "B", "N", "N", "R", "R", "P", "P", "B", "N", "R", "P", "B", "N", "R", "P", "B", "N", "R", "P", "B", "N", "R", "P"];
 string[,] board = new string[MAXSIZE, MAXSIZE];
 string[,] temp = new string[MAXSIZE, MAXSIZE];
 List<Tuple<Point, Point>> points = [];
+int solvedCount;
+Random rand = new();
 
-int solved;
-string[] PIECES = ["K", "Q", "B", "B", "N", "N", "R", "R", "P", "P", "B", "N", "R", "P", "B", "N", "R", "P", "B", "N", "R", "P", "B", "N", "R", "P"];
+#endregion
 
-void shuffleArray(string[] arr) {
-    int n = arr.Length;
-    string tmp;
+void shuffleArray(string[] arr, int iterations = 1) {
 
-    for (int i = n - 1; i > 0; i--) {
+    for (int i = 0; i < iterations; i++) {
 
-        int j = rand.Next(i + 1);
+        int i1 = rand.Next(arr.Length);
+        int i2 = rand.Next(arr.Length);
 
-        tmp = arr[i];
-        arr[i] = arr[j];
-        arr[j] = tmp;
+        (arr[i1], arr[i2]) = (arr[i2], arr[i1]);
     }
 }
 
 void createBoard() {
 
-    int z = MAXSIZE == 4 ? 10 : MAXSIZE == 5 ? 14 : MAXSIZE == 6 ? 18 : MAXSIZE == 7 ? 22 : 26;
-    string[] pieces = new string[z];
-    for (int a = 0; a < z; a++) {
-        pieces[a] = PIECES[a];
-    }
+    int pieceCount = MAXSIZE == 4 ? 10 : MAXSIZE == 5 ? 14 : MAXSIZE == 6 ? 18 : MAXSIZE == 7 ? 22 : 26;
 
-    for (int i = 0; i < z * 100; i++)
-        shuffleArray(pieces);
+    string[] pieces = new string[pieceCount];
+    Array.Copy(PIECES, pieces, pieceCount);
+
+    shuffleArray(pieces, pieceCount * 100);
 
     for (int i = 0; i < MAXSIZE; i++) {
         for (int j = 0; j < MAXSIZE; j++) {
@@ -43,22 +38,7 @@ void createBoard() {
         }
     }
 
-    /*
-    board[1,0] = temp[1,0] = "N";
-    board[2,0] = temp[2,0] = "B";
-
-    board[2,1] = temp[2,1] = "B";
-    board[3,1] = temp[3,1] = "P";
-
-    board[0,2] = temp[0,2] = "R";
-    board[1,2] = temp[1,2] = "R";
-    board[3,2] = temp[3,2] = "P";
-
-    board[0, 3] = temp[0, 3] = "N";
-
-    return;*/
-
-    int count = rand.Next(MAXSIZE, pieces.Length), idx = 0;
+    int count = rand.Next(MAXSIZE, pieces.Length + 1);
 
     for (int i = 0; i < count; i++) {
         while (true) {
@@ -66,8 +46,8 @@ void createBoard() {
             int x = rand.Next(MAXSIZE), y = rand.Next(MAXSIZE);
 
             if (board[x, y] == "") {
-                board[x, y] = pieces[idx];
-                temp[x, y] = pieces[idx++];
+                board[x, y] = pieces[i];
+                temp[x, y] = pieces[i];
                 break;
             }
         }
@@ -75,37 +55,36 @@ void createBoard() {
 }
 
 string pt2String(Point p) {
-    return Convert.ToString(Convert.ToChar(p.X + 65)) + Convert.ToString(Convert.ToChar(48 + MAXSIZE - p.Y));
+    return $"{(char)(p.X + 65)}{(char)(48 + MAXSIZE - p.Y)}";
 }
 
 void saveBoard() {
-    StreamWriter w = new("boards" + MAXSIZE + ".txt", true);
-
-    for (int i = 0; i < MAXSIZE; i++) {
-        for (int j = 0; j < MAXSIZE; j++) {
-            string u = temp[j, i] == "" ? "-" : temp[j, i];
-            w.Write(u + " ");
+    using (StreamWriter writer = new StreamWriter($"boards{MAXSIZE}.txt", true)) {
+        for (int i = 0; i < MAXSIZE; i++) {
+            for (int j = 0; j < MAXSIZE; j++) {
+                string u = string.IsNullOrEmpty(temp[j, i]) ? "-" : temp[j, i];
+                writer.Write(u + " ");
+            }
+            writer.WriteLine();
         }
-        w.WriteLine();
+
+        writer.Write("\t\t");
+
+        foreach (var point in points) {
+            writer.Write($"{pt2String(point.Item1)}->{pt2String(point.Item2)} ");
+        }
+
+        writer.WriteLine();
+        writer.WriteLine();
+
+        writer.Close();
     }
-
-    w.Write(ControlChars.Tab);
-    w.Write(ControlChars.Tab);
-
-    foreach (Tuple<Point, Point> p in points) {
-        w.Write(pt2String(p.Item1) + "->" + pt2String(p.Item2) + " ");
-    }
-
-    w.WriteLine();
-    w.WriteLine();
-
-    w.Close();
 }
 
 void printBoard() {
     for (int i = 0; i < MAXSIZE; i++) {
         for (int j = 0; j < MAXSIZE; j++) {
-            string u = board[j, i] == "" ? "-" : board[j, i];
+            string u = string.IsNullOrEmpty(temp[j, i]) ? "-" : temp[j, i];
             Console.Write(u + " ");
         }
         Console.WriteLine();
@@ -119,13 +98,7 @@ bool inBounds(Point p) {
 }
 
 int countPieces() {
-    int count = 0;
-    for (int i = 0; i < MAXSIZE; i++) {
-        for (int j = 0; j < MAXSIZE; j++) {
-            count += board[j, i] != "" ? 1 : 0;
-        }
-    }
-    return count;
+    return board.Cast<string>().Count(cell => !string.IsNullOrEmpty(cell));
 }
 
 Point[] getMoves(string s){
@@ -160,29 +133,28 @@ List<Point> tryCapture(int x, int y) {
     Point[] moves = getMoves(s);
     if (moves.Length == 0) return [];
 
-    Point f = new(x, y);
+    Point origin = new(x, y);
     
-
     if (s.Equals("K") || s.Equals("N") || s.Equals("P")) {
-        for (int i = 0; i < moves.Length; i++) {
-            Point t = new(f.X + moves[i].X, f.Y + moves[i].Y);
 
-            if (!inBounds(t) || board[t.X, t.Y] == "" || t.equals(f)) continue;
+        foreach (Point move in moves) {
+            Point target = new(origin.X + move.X, origin.Y + move.Y);
 
-            possibilities.Add(t);
+            if (inBounds(target) && board[target.X, target.Y] != "" && !target.equals(origin))
+                possibilities.Add(target);
         }
     } else {
-        for (int i = 0; i < moves.Length; i++) {
+        foreach (Point move in moves) {
             int a = x, b = y;
             while (true) {
-                a += moves[i].X;
-                b += moves[i].Y;
+                a += move.X;
+                b += move.Y;
 
-                Point t = new(a, b);
-                if (!inBounds(t)) break;
+                Point target = new(a, b);
+                if (!inBounds(target)) break;
 
-                if (board[t.X, t.Y] != "" && !t.equals(f)) {
-                    possibilities.Add(t);
+                if (board[target.X, target.Y] != "" && !target.equals(origin)) {
+                    possibilities.Add(target);
                     break;
                 }
             }
@@ -195,7 +167,7 @@ List<Point> tryCapture(int x, int y) {
 bool solveBoard() {
     
     if (countPieces() == 1) {
-        Console.WriteLine("-- Solved --!");
+        Console.WriteLine("[Solved!]");
         return true;
     }
 
@@ -210,21 +182,21 @@ bool solveBoard() {
 
             foreach(Point pt in moves) {
 
-                Tuple<Point, Point> pts = new(new Point(x, y), pt);
-                points.Add(pts);
+                Tuple<Point, Point> move = new(new Point(x, y), pt);
+                points.Add(move);
 
-                string f = board[pts.Item1.X, pts.Item1.Y],
-                        t = board[pts.Item2.X, pts.Item2.Y];
+                string f = board[move.Item1.X, move.Item1.Y],
+                        t = board[move.Item2.X, move.Item2.Y];
 
-                board[pts.Item2.X, pts.Item2.Y] = f;
-                board[pts.Item1.X, pts.Item1.Y] = "";
+                board[move.Item2.X, move.Item2.Y] = f;
+                board[move.Item1.X, move.Item1.Y] = "";
 
                 if (solveBoard()) return true;
 
-                board[pts.Item2.X, pts.Item2.Y] = t;
-                board[pts.Item1.X, pts.Item1.Y] = f;
+                board[move.Item2.X, move.Item2.Y] = t;
+                board[move.Item1.X, move.Item1.Y] = f;
 
-                points.Remove(pts);
+                points.Remove(move);
 
             }
         }
@@ -234,7 +206,7 @@ bool solveBoard() {
 }
 
 // entry point
-solved = 0;
+solvedCount = 0;
 
 for (int z = 0; z < 10; z++) {
 
@@ -244,15 +216,16 @@ for (int z = 0; z < 10; z++) {
     points.Clear();
 
     if (solveBoard()) {
-        solved++;
         saveBoard();
+        solvedCount++;
+    } else {
+        Console.WriteLine("[Not solved!]");
     }
 
-    Console.WriteLine("--------- // ---------");
-    Console.WriteLine();
+    Console.WriteLine("--------- // ---------\n");
 }
 
-Console.WriteLine("Done " + solved + " boards!");
+Console.WriteLine($"Created {solvedCount} boards!");
 
 class Point {
     public int X, Y;
